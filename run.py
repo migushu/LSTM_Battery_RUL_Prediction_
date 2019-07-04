@@ -25,16 +25,18 @@ def train_base_model(seq_len,usecols,batch_size,epochs,split = 1):
     lstm.save_model(model,save_path,scale_x,scale_y)
 
 def main():
+    #TODO 调试多特征值输入
 
     parser = argparse.ArgumentParser(description='LSTM RUL Prediction')
-    parser.add_argument('--filename', type=str, default="data/2017_06_30_cell47_data.csv")
+    parser.add_argument('--filename', type=str, default="data/2017_06_30_cell0_data.csv")
     parser.add_argument('--output_path',type=str,default="snapshot/single_variable")
-    parser.add_argument('--predict_measure', type=int, default=0, choices=[0,1])
-    parser.add_argument('--sequence_length', type=int,default= 20)
-    parser.add_argument('--split', default=0.5, help='split of train and test set')
+    parser.add_argument('--predict_measure', type=int, default=1, choices=[0,1])
+    parser.add_argument('--sequence_length', type=int,default= 4,
+                        help='time_step in lstm')
+    parser.add_argument('--split', default=0.2, help='split of train and test set')
     parser.add_argument('--batch_size', type=int, default= 32,
                         help='input batch size for training (default: 8)')
-    parser.add_argument('--epochs', type=int, default= 1, metavar='N',
+    parser.add_argument('--epochs', type=int, default= 50, metavar='N',
                         help='number of epochs to train (default: 10)')
     parser.add_argument('--dropout', default= 0.2)
     parser.add_argument('--saved_figure_path',default='result/single_variable/')
@@ -71,6 +73,7 @@ def main():
     epochs_list = [50,75,100,150,200]
 
     dataloader = load_data.load_data(filename, sequence_length, split, usecols=usecols)
+    # sca_x, sca_y=dataloader.load_scaler()
     train_x, train_y, test_x, test_y = dataloader.get_x_y()
     all_y = dataloader.get_all_y()
 
@@ -107,8 +110,8 @@ def get_model(lstm,get_model_measure,sequence_length=0,feature_num=0,dropout_pro
     if get_model_measure == 0: #define model by self.
         return lstm.build_model(sequence_length,feature_num,dropout_prob)
     elif get_model_measure ==1:#load model from file
-        json_filepath = 'multi_battery/batch_size:32_epochs:50_premeas:0.json'
-        model_weight_filepath= 'multi_battery/batch_size:32_epochs:50_premeas:0.h5'
+        json_filepath = 'saved_model/base_seqlen20_batchsize128_epoch1_features1.json'
+        model_weight_filepath= 'saved_model/base_seqlen20_batchsize128_epoch1_features1.h5'
         return lstm.load_model(json_filepath,model_weight_filepath)
     else:
         return None

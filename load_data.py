@@ -51,6 +51,8 @@ class load_data():
     def scale_train_data(self, data):
         data_x = self.scaler_x.fit_transform(data[:, :-1])
         data_y = self.scaler_y.fit_transform(data[:, -1:]) #label不归一化
+        # data_x = self.scaler_x.transform(data[:, :-1])
+        # data_y = self.scaler_y.transform(data[:, -1:])
         # data_y =data[:,-1:]
         data_all = np.concatenate((data_x, data_y), axis=1)
         return data_all
@@ -68,9 +70,11 @@ class load_data():
     def get_all_y(self):
         return  self.data_all[:,-1:]
 
-    def load_scaler(file_path):
+    def load_scaler(self,file_path=''):
         scalerx = joblib.load("saved_model/base_seqlen20_batchsize128_epoch1_features1x.scale")
         scalery = joblib.load("saved_model/base_seqlen20_batchsize128_epoch1_features1y.scale")
+        self.scaler_x = scalerx
+        self.scaler_y = scalery
         return scalerx, scalery
 
 

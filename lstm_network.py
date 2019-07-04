@@ -4,11 +4,11 @@ import numpy as np
 
 class lstm_network():
 
-    def build_network(self,seq_len,features_num =1,dropout_prob=0.2):
+    def build_network(self, time_step, features_num =1, dropout_prob=0.2):
         # input_dim是输入的train_x的最后一个维度，train_x的维度为(n_samples, time_steps, input_dim)
         model = Sequential()
-        
-        model.add(LSTM(units=50, return_sequences=True, input_shape=(seq_len, features_num)))
+        #每个时间步经过第一个LSTM后，得到的中间隐向量是50维，一个20个时间步的样本数据进去得到（20×50）的数据
+        model.add(LSTM(units=50, return_sequences=True, input_shape=(time_step, features_num)))
         print(model.layers)
         model.add(Dropout(float(dropout_prob)))
         model.add(LSTM(units=50))
