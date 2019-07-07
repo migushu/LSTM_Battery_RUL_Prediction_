@@ -4,7 +4,7 @@ from sklearn.preprocessing import StandardScaler,MinMaxScaler
 from sklearn.externals import joblib
 
 class load_data():
-    def __init__(self,filename,seq_len=50,split=0.3,usecols =[3, 4, 5, 6, 7, 8, 9, 10]):
+    def __init__(self,filename,seq_len=50,split=0.3,usecols =[ 9, 10]):
         self.file_name = filename
         self.sequence_length = seq_len
         self.split = split
@@ -22,8 +22,10 @@ class load_data():
         test_x,test_y =self.get_test_x_y(test)
         return train_x,train_y,test_x,test_y
 
-    def get_train_x_y(self, data_train):
-        data_scalered = self.scale_train_data(data_train)
+    def get_train_x_y(self, data_train,scale = 1):
+        data_scalered = data_train
+        if scale ==1:
+            data_scalered = self.scale_train_data(data_train)
         data = []
         for i in range(len(data_scalered) - self.sequence_length + 1):
             # data.append(data_scalered[i: i + self.sequence_length - 1])

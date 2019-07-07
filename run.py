@@ -12,6 +12,7 @@ from sklearn.externals import joblib
 
 def train_base_model(seq_len,usecols,batch_size,epochs,split = 1):
     filename = "multi_battery/cells_single_input.csv"
+    #TODO:此处有bug，数据按timestep分成样本时会把不同电池的数据分到一个样本
     dataloader = load_data.load_data(filename,seq_len,split,usecols)
     train_x,train_y = dataloader.get_train_x_y(dataloader.data_all)
     train_x = np.reshape(train_x, (train_x.shape[0], train_x.shape[1], len(usecols)-1))
@@ -28,15 +29,15 @@ def main():
     #TODO 调试多特征值输入
 
     parser = argparse.ArgumentParser(description='LSTM RUL Prediction')
-    parser.add_argument('--filename', type=str, default="data/2017_06_30_cell0_data.csv")
+    parser.add_argument('--filename', type=str, default="data/2017_06_30_cell45_data.csv")
     parser.add_argument('--output_path',type=str,default="snapshot/single_variable")
-    parser.add_argument('--predict_measure', type=int, default=1, choices=[0,1])
-    parser.add_argument('--sequence_length', type=int,default= 4,
+    parser.add_argument('--predict_measure', type=int, default=0, choices=[0,1])
+    parser.add_argument('--sequence_length', type=int,default=20,
                         help='time_step in lstm')
-    parser.add_argument('--split', default=0.2, help='split of train and test set')
+    parser.add_argument('--split', default=0.5, help='split of train and test set')
     parser.add_argument('--batch_size', type=int, default= 32,
                         help='input batch size for training (default: 8)')
-    parser.add_argument('--epochs', type=int, default= 50, metavar='N',
+    parser.add_argument('--epochs', type=int, default= 100, metavar='N',
                         help='number of epochs to train (default: 10)')
     parser.add_argument('--dropout', default= 0.2)
     parser.add_argument('--saved_figure_path',default='result/single_variable/')
@@ -45,7 +46,7 @@ def main():
     parser.add_argument('--usecols',default= [9, 10],type=int,nargs='+',
                         help='single feature imput use [9,10], multi use [3, 4, 5, 6, 7, 8, 9, 10]')
     #必须设置type=int，否则脚本执行时会导致get_model返回None
-    parser.add_argument('--get_model_measure',default= 0,type=int,
+    parser.add_argument('--get_model_measure',default= 1,type=int,
                         help='0 for define model from begin, 1 for load exist model')
 
     args = parser.parse_args()
@@ -73,7 +74,7 @@ def main():
     epochs_list = [50,75,100,150,200]
 
     dataloader = load_data.load_data(filename, sequence_length, split, usecols=usecols)
-    # sca_x, sca_y=dataloader.load_scaler()
+    sca_x, sca_y=dataloader.load_scaler()
     train_x, train_y, test_x, test_y = dataloader.get_x_y()
     all_y = dataloader.get_all_y()
 
@@ -83,10 +84,10 @@ def main():
 
     lstm = lstm_model.lstm()
     model = get_model(lstm, get_model_measure,sequence_length,feature_num,dropout_prob)
-    lstm.train_model(model,train_x,train_y,batch_size,epochs)
+    # lstm.train_model(model,train_x,train_y,batch_size,epochs)
     predict_y = lstm.predict(model,test_x,pre_way=predict_measure)
 
-    sca_x, sca_y = dataloader.get_scaler_x_y()
+    # sca_x, sca_y = dataloader.get_scaler_x_y()
     train_y = sca_y.inverse_transform(train_y)
     test_y = sca_y.inverse_transform(test_y)
     predict_y = sca_y.inverse_transform(predict_y)
@@ -110,13 +111,13 @@ def get_model(lstm,get_model_measure,sequence_length=0,feature_num=0,dropout_pro
     if get_model_measure == 0: #define model by self.
         return lstm.build_model(sequence_length,feature_num,dropout_prob)
     elif get_model_measure ==1:#load model from file
-        json_filepath = 'saved_model/base_seqlen20_batchsize128_epoch1_features1.json'
-        model_weight_filepath= 'saved_model/base_seqlen20_batchsize128_epoch1_features1.h5'
+        json_filepath = 'saved_model/base_seqlen20_batchsize128_epoch100_features1.json'
+        model_weight_filepath= 'saved_model/base_seqlen20_batchsize128_epoch100_features1.h5'
         return lstm.load_model(json_filepath,model_weight_filepath)
     else:
         return None
 
 if __name__ == '__main__':
     # scalerx = joblib.load("saved_model/base_seqlen20_batchsize128_epoch1_features1x.scale")
-    # train_base_model(20,[0,1],128,1,1)
+    # train_base_model(20,[0,1],128,epochs=100)
     main()
