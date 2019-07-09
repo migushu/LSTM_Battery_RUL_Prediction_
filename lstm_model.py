@@ -13,7 +13,7 @@ class lstm():
     #     self.units_nums = units_num
 
 
-    def build_model(self,sequence_length,feature_num,dropout_prob):
+    def build_model(self,sequence_length,feature_num,dropout_prob,lstm_units = 50):
         # input_dim是输入的train_x的最后一个维度，train_x的维度为(n_samples, time_steps, input_dim)
         model = lstm_network.lstm_network().build_network(sequence_length,feature_num,dropout_prob)
         return model
