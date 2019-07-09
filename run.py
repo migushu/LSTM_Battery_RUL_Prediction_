@@ -9,17 +9,26 @@ import load_data
 import lstm_model
 import lstm_network
 from sklearn.externals import joblib
-
+from sklearn.preprocessing import MinMaxScaler
 def get_base_train_data(data):
+    scale = MinMaxScaler()
+    data = np.concatenate((data[:,0:1],scale.fit_transform(data[:,1:])))
+    cells = []
     for i in range(31):
-        data = [row for row in data if row[0] == i]
-    print(data)
+        cells.append([row for row in data if int(row[0]) == i])
+    print(len(cells))
+
+    train_x,train_y = [],[]
+    for cell in cells:
+        print(np.array(cell).shape)
+        break
+
 
 def train_base_model(seq_len,usecols,batch_size,epochs,split = 1):
     filename = "multi_battery/cells_multi_input.csv"
     #TODO:此处有bug，多电池数据按timestep分成样本时会把不同电池的数据分到一个样本
     dataloader = load_data.load_data(filename,seq_len,split,usecols)
-    train_x,train_y = get_base_train_data(dataloader.data_all)
+    get_base_train_data(dataloader.data_all)
     # train_x,train_y = dataloader.get_train_x_y(dataloader.data_all)
     # train_x = np.reshape(train_x, (train_x.shape[0], train_x.shape[1], len(usecols)-1))
     #
