@@ -34,7 +34,8 @@ class load_data():
         reshaped_data = np.array(data).astype('float64')
 
         if is_shuffle:
-            random.shuffle(reshaped_data)
+            np.random.shuffle(reshaped_data)
+            # random.shuffle(reshaped_data)
 
         train_x = reshaped_data[:, :, :-1]
         train_y = reshaped_data[:, len(reshaped_data[1]) - 1, -1:]##-2:-1

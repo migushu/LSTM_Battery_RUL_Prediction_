@@ -5,10 +5,19 @@ import numpy as np
 import pandas as pd
 import keras
 from sklearn.preprocessing import MinMaxScaler
+import random
 
-
-a = np.zeros((8,))
+a = np.arange(9).reshape((3,3))
 print(a)
+print(a.shape)
+np.random.shuffle(a)#np.random 和random有区别。random结果不是想要的
+print(a)
+
+
+
+#
+# a = np.zeros((8,))
+# print(a)
 
 
 # a=[[[1, 2, 3, 0],[4, 5, 6, 0]],[[1,1,1,1],[2,2,2,2]]]

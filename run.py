@@ -15,10 +15,11 @@ import timestep_prediction
 
 
 def get_base_train_data(dataloader,timestep,is_timestep_y = False):
-    scale = StandardScaler()
+    cells_num = 10
+    scale = MinMaxScaler()
     data = np.concatenate((dataloader.data_all[:,0:1],scale.fit_transform(dataloader.data_all[:,1:])),axis=1)
     cells = []
-    for i in range(5):
+    for i in range(cells_num):
         cells.append([row for row in data if int(row[0]) == i])
     print(len(cells))
 
@@ -41,7 +42,8 @@ def get_base_train_data(dataloader,timestep,is_timestep_y = False):
     train_x = np.array(train_x[1:,:]).reshape(-1,timestep)
     train_y = train_y[1:,:]
     train = np.concatenate((train_x,train_y),axis=1)
-    random.shuffle(train)
+    # random.shuffle(train)#TODO:有问题
+    np.random.shuffle(train)
     train_x = np.array(train[:,:timestep]).reshape(-1,timestep,1)
     train_y = np.array(train[:,timestep:])
 
