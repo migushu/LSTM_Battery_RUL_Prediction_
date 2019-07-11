@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler,MinMaxScaler
 from sklearn.externals import joblib
+import random
 
 class load_data():
     def __init__(self,filename,seq_len=50,split=0.3,usecols =[ 9, 10]):
@@ -22,7 +23,7 @@ class load_data():
         test_x,test_y =self.get_test_x_y(test)
         return train_x,train_y,test_x,test_y
 
-    def get_train_x_y(self, data_train,scale = 1):
+    def get_train_x_y(self, data_train,scale = 1,is_shuffle = False):
         data_scalered = data_train
         if scale ==1:
             data_scalered = self.scale_train_data(data_train)
@@ -32,7 +33,8 @@ class load_data():
             data.append(data_scalered[i: i + self.sequence_length ])
         reshaped_data = np.array(data).astype('float64')
 
-        # random.shuffle(reshaped_data)
+        if is_shuffle:
+            random.shuffle(reshaped_data)
 
         train_x = reshaped_data[:, :, :-1]
         train_y = reshaped_data[:, len(reshaped_data[1]) - 1, -1:]##-2:-1

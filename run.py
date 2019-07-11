@@ -2,6 +2,7 @@ import argparse
 import os.path as osp
 import datetime
 import numpy as np
+import random
 import lstm_model
 import loss
 from utils import plot_and_save,get_time
@@ -9,59 +10,81 @@ import load_data
 import lstm_model
 import lstm_network
 from sklearn.externals import joblib
-from sklearn.preprocessing import MinMaxScaler
-def get_base_train_data(data):
-    scale = MinMaxScaler()
-    data = np.concatenate((data[:,0:1],scale.fit_transform(data[:,1:])))
+from sklearn.preprocessing import MinMaxScaler,StandardScaler
+import timestep_prediction
+
+
+def get_base_train_data(dataloader,timestep,is_timestep_y = False):
+    scale = StandardScaler()
+    data = np.concatenate((dataloader.data_all[:,0:1],scale.fit_transform(dataloader.data_all[:,1:])),axis=1)
     cells = []
-    for i in range(31):
+    for i in range(5):
         cells.append([row for row in data if int(row[0]) == i])
     print(len(cells))
 
-    train_x,train_y = [],[]
+    train_x = np.zeros((1,timestep,1))
+    train_y = np.zeros((1,timestep)) if is_timestep_y else np.zeros((1,1))
     for cell in cells:
-        print(np.array(cell).shape)
-        break
+        cell = np.array(cell)
+        cell = cell[:,1:]
+        # print(cell.shape)
+        if is_timestep_y:
+            cell_train_x,cell_train_y = timestep_prediction.get_supervised_timestep_x_y(cell,timestep)
+        else:
+            cell_train_x,cell_train_y = dataloader.get_train_x_y(cell,scale=0,is_shuffle=True)
+        train_x = np.concatenate((train_x,cell_train_x),axis=0)
+        train_y = np.concatenate((train_y,cell_train_y),axis=0)
+    print(train_x.shape)
+    print(train_y.shape)
 
+    #打乱训练集顺序，训练的loss降低了很多
+    train_x = np.array(train_x[1:,:]).reshape(-1,timestep)
+    train_y = train_y[1:,:]
+    train = np.concatenate((train_x,train_y),axis=1)
+    random.shuffle(train)
+    train_x = np.array(train[:,:timestep]).reshape(-1,timestep,1)
+    train_y = np.array(train[:,timestep:])
+
+    return train_x,train_y,scale
 
 def train_base_model(seq_len,usecols,batch_size,epochs,split = 1):
     filename = "multi_battery/cells_multi_input.csv"
-    #TODO:此处有bug，多电池数据按timestep分成样本时会把不同电池的数据分到一个样本
+    #DONE:此处有bug，多电池数据按timestep分成样本时会把不同电池的数据分到一个样本
     dataloader = load_data.load_data(filename,seq_len,split,usecols)
-    get_base_train_data(dataloader.data_all)
+    train_x,train_y,scale = get_base_train_data(dataloader,seq_len)#TODO:没有效果
     # train_x,train_y = dataloader.get_train_x_y(dataloader.data_all)
     # train_x = np.reshape(train_x, (train_x.shape[0], train_x.shape[1], len(usecols)-1))
     #
-    # model = lstm_network.lstm_network().build_network(seq_len,len(usecols)-1)
-    # lstm = lstm_model.lstm()
-    # model = lstm.train_model(model,train_x,train_y,batch_size,epochs)
-    # save_path="saved_model/base_seqlen{0}_batchsize{1}_epoch{2}_features{3}" \
-    #           "".format(seq_len,batch_size,epochs,len(usecols)-1)
-    # scale_x,scale_y = dataloader.get_scaler_x_y()
-    # lstm.save_model(model,save_path,scale_x,scale_y)
+    model = lstm_network.lstm_network().build_network(seq_len,len(usecols)-1)
+    lstm = lstm_model.lstm()
+    model = lstm.train_model(model,train_x,train_y,batch_size,epochs)
+    save_path="saved_model/base_seqlen{0}_batchsize{1}_epoch{2}_features{3}" \
+              "".format(seq_len,batch_size,epochs,len(usecols)-1)
+    scale_x,scale_y = dataloader.get_scaler_x_y()#TODO：scale有问题，不需要y
+    lstm.save_model(model,save_path,scale_x,scale_y)
 
 def main():
     #TODO 调试多特征值输入
 
     parser = argparse.ArgumentParser(description='LSTM RUL Prediction')
-    parser.add_argument('--filename', type=str, default="data/2017_06_30_cell10_data.csv")
+    parser.add_argument('--filename', type=str, default="data/2017_06_30_cell8_data.csv")
     parser.add_argument('--output_path',type=str,default="snapshot/single_variable")
     parser.add_argument('--predict_measure', type=int, default=0, choices=[0,1])
-    parser.add_argument('--sequence_length', type=int,default=50,
+    parser.add_argument('--sequence_length', type=int,default=20,
                         help='time_step in lstm')
-    parser.add_argument('--split', default=0.5, help='split of train and test set')
-    parser.add_argument('--batch_size', type=int, default= 32,
+    parser.add_argument('--split', default=0.6, help='split of train and test set')
+    parser.add_argument('--batch_size', type=int, default= 8,
                         help='input batch size for training (default: 8)')
-    parser.add_argument('--epochs', type=int, default= 100, metavar='N',
+    parser.add_argument('--epochs', type=int, default= 50, metavar='N',
                         help='number of epochs to train (default: 10)')
-    parser.add_argument('--dropout', default= 0.2)
+    parser.add_argument('--dropout', default= 0.5)
     parser.add_argument('--saved_figure_path',default='result/single_variable/')
     parser.add_argument('--feature_num',type=int,default= 1,
                         help='single feature use 1,multi use 7')
     parser.add_argument('--usecols',default= [9, 10],type=int,nargs='+',
                         help='single feature imput use [9,10], multi use [3, 4, 5, 6, 7, 8, 9, 10]')
     #必须设置type=int，否则脚本执行时会导致get_model返回None
-    parser.add_argument('--get_model_measure',default= 0,type=int,
+    parser.add_argument('--get_model_measure',default= 1,type=int,
                         help='0 for define model from begin, 1 for load exist model')
     #cell 个数越小结果越精确， 数据太少？
     parser.add_argument('--lstm_units',default=50,type=int)
@@ -137,5 +160,5 @@ def get_model(lstm,get_model_measure,sequence_length=0,feature_num=0,dropout_pro
 
 if __name__ == '__main__':
     # scalerx = joblib.load("saved_model/base_seqlen20_batchsize128_epoch1_features1x.scale")
-    train_base_model(20,[0,7],128,epochs=100)
-    # main()
+    # train_base_model(20,[0,7],128,epochs=50)
+    main()

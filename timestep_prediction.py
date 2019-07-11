@@ -9,47 +9,80 @@ from sklearn.preprocessing import MinMaxScaler,StandardScaler
 from keras.layers import LSTM,Dense,Dropout
 from keras.models import Sequential
 import math
+from sklearn.externals import joblib
+import random
+
+'''
+用前N timestep 步来预测接下来的N步，将预测的N步用作下一个N步预测的输入
+'''
 
 def main():
     #TODO:
     time_step = 10
-    feat_num = 1
-    split = 0.5
-    epochs = 100
+    split = 0.6
+    epochs = 50
     cell_num = 50
-    # data_all = load_data.load_data("multi_battery/cells_multi_input.csv", time_step, usecols=[0,1,7]).data_all
-    data_all = load_data.load_data('data/2017_06_30_cell0_data.csv',time_step,usecols=[3,9]).data_all
-    print(data_all.shape)
-    # plt.plot(data_all[:,0],data_all[:,1])
-    # plt.show()
+    dropout_prob = 0.2
+    batch_size = 128
 
+    #预训练
+    import run
+    filename = "multi_battery/cells_multi_input.csv"
+    dataloader = load_data.load_data(filename, time_step, split, usecols=[0,7])
+    train_x, train_y,scale = run.get_base_train_data(dataloader, time_step,is_timestep_y=True)
+    print(train_x,train_y)
+    lstm = lstm_model.lstm()
+    model = lstm_network.lstm_network().build_network(time_step=train_x.shape[1],
+                               features_num=train_x.shape[2],
+                               dropout_prob=dropout_prob,
+                               dense_units=train_y.shape[1],
+                               lstm_units=cell_num,
+                               optimizer='rmsprop'
+                               )
+    model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, verbose=1)
+    save_path = "saved_model/timestep_prediction_timestep:{0}_batchsize:{1}".format(time_step,batch_size)
+    lstm.save_model(model,save_path,scale,scale)
+
+    #针对具体cell预测。
+    data_all = load_data.load_data('data/2017_06_30_cell0_data.csv',time_step,usecols=[3,9]).data_all
     #split to train and test.
     num_train = int(split * len(data_all))
     train = data_all[:num_train,1:]
-    test = data_all[num_train:,1:]
+    test = data_all[num_train-time_step:,1:]
     print(train.shape)
 
     #converting dataset to train_x and train_y
     # Here we only scale the train dataset, and not the entire dataset to prevent information leak
-    scaler = StandardScaler()
-    train_scaled = scaler.fit_transform(np.array(train).reshape(-1,1))
-    print("scaler.mean= {0}, scaler.var= {1}".format(scaler.mean_,scaler.var_))
+    # scaler = StandardScaler()
+    train_scaled = scale.transform(np.array(train).reshape(-1,1))
+    print("scaler.mean= {0}, scaler.var= {1}".format(scale.mean_,scale.var_))
 
     #split into train_x and train_y
-    x_train_scaled,y_train_scaled = get_supervised_x_y(train_scaled,time_step)
+    x_train_scaled,y_train_scaled = get_supervised_timestep_x_y(train_scaled, time_step)
     print('y_train_scaled.shape= {0}'.format(y_train_scaled.shape))
 
     #scale test and split to test_x and test_y
     test_x_scaled, test_y, test_mu_list, test_std_list = get_x_scaled_y(test,time_step)
     print('test_x_scaled.shape= {0}'.format(test_x_scaled.shape))
 
-    rmse,mape,pre  = train_pred_eval_model(x_train_scaled,y_train_scaled,test_x_scaled,
+    rmse,mape,pre,model  = train_pred_eval_model(x_train_scaled,y_train_scaled,test_x_scaled,
                                            test_y,test_mu_list,test_std_list,
-                                           lstm_units=cell_num,epochs=epochs)
+                                           lstm_units=cell_num,epochs=epochs,model=model)
     print("rmse= {0}, mape={1}".format(rmse,mape))
-    plt.plot(np.array(pre).reshape(-1,1),'r')
-    plt.plot(np.array(test_y).reshape(-1,1))
+    lstm = lstm_model.lstm()
+    save_path = save_path+"_predict"
+    lstm.save_model(model,save_path,scale,scale)
+
+    plt.plot(train)
+    plt_pre = np.array(pre).reshape(-1,1)
+    plt_test = np.array(test_y).reshape(-1,1)
+    plt.plot(range(len(train),len(train)+len(plt_pre)),plt_pre,'r')
+    plt.plot(range(len(train),len(train)+len(plt_test)),plt_test,'y')
+    plt.legend(["train","predict","test"])
+    name = "timestep:{0}_.png".format(time_step)
+    plt.savefig("result/multi_pre/" + name)
     plt.show()
+    plt.close()
 
 
     # data_train = np.concatenate((data_all[:num_train,:1],scale.fit_transform(data_all[:num_train,1:])),axis=1)
@@ -58,8 +91,16 @@ def main():
     # test_x,test_y = get_supervised_x_y(data_test, time_step)
     # print(len(train_x),len(train_y),len(test_x),len(test_y))
 
+def save_model(model,save_path,scale_x,scale_y):
+    model_json = model.to_json()
+    with open(save_path + ".json", "w") as f:  # .json
+        f.write(model_json)
+    joblib.dump(scale_x, save_path + "x.scale")
+    joblib.dump(scale_y, save_path + "y.scale")
+    model.save_weights(save_path + ".h5")  # .h5
 
-def get_supervised_x_y(data, time_step):
+
+def get_supervised_timestep_x_y(data, time_step):
     """
        Split data into x (features) and y (target)
     """
@@ -68,7 +109,11 @@ def get_supervised_x_y(data, time_step):
         data_x.append(data[i: i + time_step])
         data_y.append(data[i+time_step:i+time_step*2])
     data_x = np.array(data_x)
-    data_y = np.array(data_y).reshape(-1,time_step)
+    data_y = np.array(data_y).reshape(-1,time_step,1)
+    data = np.concatenate((data_x,data_y),axis=2)
+    random.shuffle(data)
+    data_x = data[:,:,0:1]
+    data_y = data[:,:,1]
     return data_x,data_y
 
 def get_x_scaled_y(data, time_step):
@@ -101,38 +146,25 @@ def get_x_scaled_y(data, time_step):
     return x_scaled, y_noscaled, mu_list, std_list
 
 def train_pred_eval_model(x_train_scaled, y_train_scaled, x_test_scaled, y_test, mu_teste_list, std_test_list, lstm_units=10, \
-                          dropout_prob=0.5, optimizer='rmsprop', epochs=50, batch_size=64):
+                          dropout_prob=0.5, optimizer='rmsprop', epochs=50, batch_size=64,model = None):
     '''
            Train model, do prediction, scale back to original range and do evaluation
            Use LSTM here.
            Returns rmse, mape and predicted values
-           Inputs
-               x_train_scaled  : e.g. x_train_scaled.shape=(451, 9, 1). Here we are using the past 9 values to predict the next value
-               y_train_scaled  : e.g. y_train_scaled.shape=(451, 1)
-               x_cv_scaled     : use this to do predictions
-               y_cv            : actual value of the predictions
-               mu_cv_list      : list of the means. Same length as x_scaled and y
-               std_cv_list     : list of the std devs. Same length as x_scaled and y
-               lstm_units      : lstm param
-               dropout_prob    : lstm param
-               optimizer       : lstm param
-               epochs          : lstm param
-               batch_size      : lstm param
            Outputs
                rmse            : root mean square error
                mape            : mean absolute percentage error
                est             : predictions
-           '''
-    # Create the LSTM network
-    model = Sequential()
-    model.add(LSTM(units=lstm_units, return_sequences=True, input_shape=(x_train_scaled.shape[1], x_train_scaled.shape[2])))
-    model.add(Dropout(dropout_prob))  # Add dropout with a probability of 0.5
-    model.add(LSTM(units=lstm_units))
-    model.add(Dropout(dropout_prob))  # Add dropout with a probability of 0.5
-    model.add(Dense(y_train_scaled.shape[1]))
+    '''
+    if model == None:
+        model = lstm_network.lstm_network().build_network(time_step=x_train_scaled.shape[1],
+                                                          features_num=x_train_scaled.shape[2],
+                                                          dropout_prob=dropout_prob,
+                                                          dense_units=y_train_scaled.shape[1],
+                                                          lstm_units=lstm_units,
+                                                          optimizer=optimizer)
 
     # Compile and fit the LSTM network
-    model.compile(loss='mean_squared_error', optimizer=optimizer)
     model.fit(x_train_scaled, y_train_scaled, epochs=epochs, batch_size=batch_size, verbose=1)
 
     # Do prediction
@@ -149,54 +181,8 @@ def train_pred_eval_model(x_train_scaled, y_train_scaled, x_test_scaled, y_test,
     rmse = math.sqrt(mean_squared_error(y_test, est))
     mape = loss.get_mape(y_test, est)
 
-    return rmse, mape, est
+    return rmse, mape, est, model
 
-
-
-    # for i in range(31):
-    #     data = [row for row in data_all if row[0] == i]
-    #     # print('{0}: {1}'.format(i,rows))
-    #     print('{}: {}'.format(i,len(data)))
-
-    # data_x,data_y = [],[]
-    # for i in range(0,len(data_all)-time_step*2):
-    #     data_x.append(data_all[i:i+time_step])
-    #     data_y.append(data_all[i+time_step:i+time_step*2])
-    # data_x = np.array(data_x).astype(float)
-    # data_y = np.array(data_y).astype(float)
-    # print(len(data_x))
-    # boundary = int(split *len(data_x))
-    # train_x = data_x[:boundary]
-    # train_y = data_y[:boundary]
-    # test_x = data_x[boundary:]
-    # test_y = data_y[boundary:]
-    #
-    # train_x = np.reshape(train_x, (train_x.shape[0], train_x.shape[1], feat_num))
-    # test_x = np.reshape(test_x, (test_x.shape[0], test_x.shape[1], feat_num))
-    # train_y = np.reshape(train_y,(train_y.shape[0],train_y.shape[1]))
-    # test_y = np.reshape(test_y,(test_y.shape[0],test_y.shape[1]))
-    #
-    #
-    # model = lstm_network.lstm_network().build_network(time_step, feat_num, dropout_prob=0.2, dense_units=time_step)
-    # lstm = lstm_model.lstm()
-    # model = lstm.train_model(model, train_x, train_y, batch_size=32, epochs=epochs)
-    # pre = lstm.predict(model, test_x[0:1], pre_way=0)
-    # pre = np.reshape(pre,(-1,time_step))
-    # pre= scale_y.inverse_transform(pre)
-    # rmse = loss.get_rmse(test_y,pre)
-    # print(rmse)
-    #
-    # test_plt_y = test_y[:,0:1]
-    # for i in test_y[-1:,1:]:
-    #     test_plt_y = np.append(test_plt_y, i)
-    #
-    # for i in range(1):
-    #     plt.plot(pre[i,:],'r')
-    #
-    # plt.plot(data_all)
-    # plt.plot(range(time_step,time_step+len(train_y[:,0:1])),train_y[:,0:1])
-    # plt.plot(range(time_step+len(train_y[:,0:1]),time_step+len(train_y[:,0:1])+len(test_plt_y)),test_plt_y)
-    # plt.show()
 
 if __name__ == '__main__':
     main()

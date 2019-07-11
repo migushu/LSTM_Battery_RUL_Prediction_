@@ -13,9 +13,9 @@ class lstm():
     #     self.units_nums = units_num
 
 
-    def build_model(self,sequence_length,feature_num,dropout_prob,lstm_units = 50):
+    def build_model(self,sequence_length,feature_num,dropout_prob,lstm_units = 50,dense_units=1):
         # input_dim是输入的train_x的最后一个维度，train_x的维度为(n_samples, time_steps, input_dim)
-        model = lstm_network.lstm_network().build_network(sequence_length,feature_num,dropout_prob)
+        model = lstm_network.lstm_network().build_network(sequence_length,feature_num,dropout_prob,dense_units=dense_units)
         return model
 
     def train_model(self,model,train_x, train_y, batch_size, epochs):
@@ -82,6 +82,7 @@ class lstm():
         joblib.dump(scale_x,save_path+"x.scale")
         joblib.dump(scale_y,save_path+"y.scale")
         model.save_weights(save_path+".h5")#.h5
+        print("saved model.")
 
 
 
