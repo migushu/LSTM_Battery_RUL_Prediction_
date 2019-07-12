@@ -9,9 +9,11 @@ import random
 
 a = np.arange(9).reshape((3,3))
 print(a)
-print(a.shape)
-np.random.shuffle(a)#np.random 和random有区别。random结果不是想要的
+a = np.reshape(a,(-1,1))
 print(a)
+# print(a.shape)
+# np.random.shuffle(a)#np.random 和random有区别。random结果不是想要的
+# print(a)
 
 
 

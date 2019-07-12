@@ -14,13 +14,16 @@ from sklearn.externals import joblib
 import random
 
 '''
+循环预测：
 用前N timestep 步来预测接下来的N步，将预测的N步用作下一个N步预测的输入
+用前N timestep 步来预测接下来的M步，将预测的M步添加到测试集中，用作下一个预测的部分输入
 '''
 
 def main():
-    #TODO:
-    time_step = 20
-    split = 0.7
+    #DONE:实现输入和预测长度不一样的情况
+    time_step = 30
+    pre_step = 10
+    split = 0.6
     epochs = 100
     cell_num = 50
     dropout_prob = 0.5
@@ -30,25 +33,25 @@ def main():
     import run
     filename = "multi_battery/cells_multi_input.csv"
     dataloader = load_data.load_data(filename, time_step, split, usecols=[0,7])
-    train_x, train_y,scale = run.get_base_train_data(dataloader, time_step,is_timestep_y=True)
-
+    train_x, train_y,scale = run.get_base_train_data(dataloader, time_step,pre_step,is_timestep_y=True)
+    model = None
     lstm = lstm_model.lstm()
     #训练出一个基本模型
     # model = lstm_network.lstm_network().build_network(time_step=train_x.shape[1],
     #                            features_num=train_x.shape[2],
     #                            dropout_prob=dropout_prob,
-    #                            dense_units=train_y.shape[1],
+    #                            dense_units=pre_step,
     #                            lstm_units=cell_num,
     #                            optimizer='rmsprop'
     #                            )
     # model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, verbose=1)
-    save_path = "saved_model/timestep_prediction_timestep:{0}_batchsize:{1}".format(time_step,batch_size)
+    save_path = "saved_model/timestep_pre_timestep:{0}_prestep:{1}_batchsize:{2}".format(time_step,pre_step,batch_size)
     # lstm.save_model(model,save_path,scale,scale)
-
-    model = lstm.load_model("saved_model/timestep_prediction_timestep:20_batchsize:64.json","saved_model/timestep_prediction_timestep:20_batchsize:64.h5")
+    #
+    model = lstm.load_model(save_path+".json",save_path+".h5")
 
     #针对具体cell预测。
-    data_all = load_data.load_data('data/2017_06_30_cell34_data.csv',time_step,usecols=[3,9]).data_all
+    data_all = load_data.load_data('data/2017_06_30_cell30_data.csv',time_step,usecols=[3,9]).data_all
     #split to train and test.
     num_train = int(split * len(data_all))
     train = data_all[:num_train,1:]
@@ -62,11 +65,11 @@ def main():
     # print("scaler.min= {0}".format(scale.min_))
 
     #split into train_x and train_y
-    x_train_scaled,y_train_scaled = get_supervised_timestep_x_y(train_scaled, time_step)
+    x_train_scaled,y_train_scaled = get_supervised_timestep_x_y(train_scaled, time_step,pre_step)
     print('y_train_scaled.shape= {0}'.format(y_train_scaled.shape))
 
     #scale test and split to test_x and test_y
-    test_x_scaled, test_y, test_mu_list, test_std_list = get_x_scaled_y(test,time_step,scale)
+    test_x_scaled, test_y, test_mu_list, test_std_list = get_x_scaled_y(test,time_step,pre_step,scale)
     print('test_x_scaled.shape= {0}'.format(test_x_scaled.shape))
 
     rmse,mape,pre,model  = train_pred_eval_model(x_train_scaled,y_train_scaled,test_x_scaled,
@@ -106,24 +109,30 @@ def save_model(model,save_path,scale_x,scale_y):
     model.save_weights(save_path + ".h5")  # .h5
 
 
-def get_supervised_timestep_x_y(data, time_step):
+def get_supervised_timestep_x_y(data, time_step,pre_step):
     """
        Split data into x (features) and y (target)
     """
-    data_x, data_y = [], []
-    for i in range(0,len(data)-time_step*2 ):
-        data_x.append(data[i: i + time_step])
-        data_y.append(data[i+time_step:i+time_step*2])
-    data_x = np.array(data_x)
-    data_y = np.array(data_y).reshape(-1,time_step,1)
-    data = np.concatenate((data_x,data_y),axis=2)
-    # random.shuffle(data)#TODO:搞混了x和y
-    np.random.shuffle(data)
-    data_x = data[:,:,0:1]
-    data_y = data[:,:,1]
+    data_x, data_y,data_all = [], [], []
+    for i in range(0,len(data)-time_step-pre_step ):
+        data_all.append(data[i:i+time_step+pre_step])
+        # data_x.append(data[i: i + time_step])
+        # data_y.append(data[i+time_step:i+time_step+pre_step])
+    # data_x = np.array(data_x)
+    # data_y = np.array(data_y).reshape(-1,pre_step,1)
+    # data = np.concatenate((data_x,data_y),axis=2)
+    data_all = np.array(data_all)
+    # random.shuffle(data)#DONE:搞混了x和y
+    # np.random.shuffle(data)
+    np.random.shuffle(data_all)
+    data_x = data_all[:,:time_step]
+    data_y = np.array(data_all[:,time_step:])
+    data_y = data_y.reshape(data_y.shape[0],data_y.shape[1])
+    # data_x = data[:,:,0:1]
+    # data_y = data[:,:,1]
     return data_x,data_y
 
-def get_x_scaled_y(data, time_step,scale):
+def get_x_scaled_y(data, time_step,pre_step,scale):
     """
           Split data into x (features) and y (target)
           We scale x to have mean 0 and std dev 1, and return this.
@@ -138,16 +147,16 @@ def get_x_scaled_y(data, time_step,scale):
               std_list : list of the std devs. Same length as x_scaled and y
           """
     x_scaled, y_unscaled, mu_list, std_list = [], [], [], []
-    for i in range(0,len(data)-2*time_step,time_step):#减去2倍timestep,y最后一个长度才能保证为timestep
+    for i in range(0,len(data)-time_step-pre_step,pre_step):#减去2倍timestep,y最后一个长度才能保证为timestep
         index = int(i/time_step)
         mu_list.append(np.mean(data[i:i+time_step]))
         std_list.append(np.std(data[i:i+time_step]))
         # x_scaled.append((data[i:i+time_step] - mu_list[index]) / std_list[index])
         x_scaled.append(scale.transform(data[i:i+time_step,:]))
-        y_unscaled.append(data[i+time_step:i+2*time_step,:])
+        y_unscaled.append(data[i+time_step:i+time_step+pre_step,:])
     x_scaled = np.array(x_scaled)
     print(x_scaled.shape)
-    y_unscaled = np.array(y_unscaled).reshape(x_scaled.shape[0],x_scaled.shape[1])
+    y_unscaled = np.array(y_unscaled).reshape(-1,pre_step)
     print(y_unscaled.shape)
 
 
@@ -176,18 +185,30 @@ def train_pred_eval_model(x_train_scaled, y_train_scaled, x_test_scaled, y_test,
     model.fit(x_train_scaled, y_train_scaled, epochs=epochs, batch_size=batch_size, verbose=1)
 
     # Do prediction
+    timesteps = x_test_scaled.shape[1]
     est_scaled = []
-    test_x = x_test_scaled[0:1,:,:] #(1,10,1)
-    for i in range(len(x_test_scaled)):
-        pre = model.predict(test_x) #(1,10)
-        est_scaled.append(pre)
-        pre= np.reshape(pre,(1,x_test_scaled.shape[1],x_test_scaled.shape[2]))
-        test_x = pre
+    pre_num = len(y_test)
+    predict_y = []
+    pre_xlist = []#预测的输入列表
+    pre_xlist.extend(x_test_scaled[0,:,0].tolist())
+    # test_x = x_test_scaled[0:1,:,:] #(1,10,1)
+    for i in range(pre_num):
+        predictx = np.array(pre_xlist[-timesteps:])
+        predictx = np.reshape(predictx,(1,timesteps,1))
+        pre_y = model.predict(predictx)
+        pre_xlist.extend(pre_y[0])
+        est_scaled.extend(pre_y)
+
+        # pre = model.predict(test_x) #(1,10)
+        # est_scaled.append(pre)
+        # pre= np.reshape(pre,(1,x_test_scaled.shape[1],x_test_scaled.shape[2]))
+        # test_x = pre
 
     est_scaled = np.array(est_scaled).reshape(-1,1)
     # est = (est_scaled * np.array(std_test_list).reshape(-1, 1)) + np.array(mu_teste_list).reshape(-1, 1)
     est = scale.inverse_transform(est_scaled)
-    est = np.array(est).reshape(x_test_scaled.shape[0],x_test_scaled.shape[1])
+    # est = np.array(est).reshape(x_test_scaled.shape[0],x_test_scaled.shape[1])
+    y_test = np.reshape(y_test,(-1,1))
     rmse = math.sqrt(mean_squared_error(y_test, est))
     mape = loss.get_mape(y_test, est)
 
