@@ -7,10 +7,10 @@ import keras
 from sklearn.preprocessing import MinMaxScaler
 import random
 
-a = np.arange(9).reshape((3,3))
-print(a)
-a = np.reshape(a,(-1,1))
-print(a)
+# a = np.arange(9).reshape((3,3))
+# print(a)
+# a = np.reshape(a,(-1,1))
+# print(a)
 # print(a.shape)
 # np.random.shuffle(a)#np.random 和random有区别。random结果不是想要的
 # print(a)
@@ -26,13 +26,17 @@ print(a)
 # print(np.mean(a))
 # print(np.std(a))
 
-# with open("lstm_multi.sh",'w') as f :
-#     for i in range(2,101):
-#         for epochs in [50,75,100,150,200,300]:
-#             sh_str = "python lstm_multi_variable.py --sequence_length " + str(i)+" --epochs "+str(epochs)
-#             f.write(sh_str)
-#             f.write("\n")
-#             f.flush()
+with open("sks/single_input.sh",'w') as f :
+    for i in range(5,100,5):
+        for epochs in [50,100,150,200]:
+            for batchsize in [8,16,32,64,128]:
+                sh_str = "python ./sks/sks_run.py --timestep " + str(i) + " --epochs " + str(
+                    epochs) +' --batch_size ' + str(batchsize)
+
+                f.write(sh_str)
+                f.write("\n")
+
+                f.flush()
 
 #
 

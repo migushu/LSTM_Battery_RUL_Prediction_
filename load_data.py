@@ -12,6 +12,7 @@ class load_data():
         self.scaler_x = MinMaxScaler()
         self.scaler_y = MinMaxScaler()
         self.df = pd.read_csv(self.file_name, sep=',', usecols=usecols)
+        # self.df = pd.read_csv(self.file_name, sep=',')
         self.data_all = np.array(self.df).astype(float)
 
     def get_x_y(self):

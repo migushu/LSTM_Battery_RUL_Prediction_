@@ -1,0 +1,3 @@
+cell,failure,timestep,epochs,batchsize,split,eol_cap,start_pre_cycle,eol_cycle,rul,pre_rul,rul_error
+Statistics_1-046,30,50,8,0.5,1.7409677917339361,555,833,278,418
+Statistics_1-046,30,100,64,0.5,1.7409677917339361,555,833,278,232,46
