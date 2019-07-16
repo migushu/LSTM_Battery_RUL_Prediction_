@@ -47,9 +47,12 @@ def get_rul(data,split,failure = 0.7):
     return start_pre_cycle,eol_cycle,rul, eol_cap,eol_cap_norm
 
 def get_pre_rul(data,eol_cap_norm):
-    pre_cycle = np.where(data<=eol_cap_norm)
+    data = np.array(data).reshape(-1,)#若为（-1,1），则pre_cycle会返回两个tuple，
+    pre_index = np.where(data<=eol_cap_norm)#返回满足条件的坐标，维数同data的维度
+    pre_cycle = np.array(pre_index)
+    if len(pre_cycle[0]) == 0:
+        pre_cycle = 0
     pre_cycle = np.array(pre_cycle).reshape(-1,1)
-    pre_cap = data[pre_cycle[0]]
     return pre_cycle[0,0]
 
 def get_origin_train_test():
@@ -114,10 +117,11 @@ def main(split,timestep,pre_step,batchsize,epochs,dropout_prob,failure):
     print("mape:{0},mse:{1}".format(mape,mse))
     pre_rul = get_pre_rul(pre_y,eol_cap_norm)
     rul_error = rul -pre_rul
-    print('RUL_actual:{0},RUL_LSTM:{1},RUL_error:{2}'.format(rul,pre_rul,rul_error))
+    info = 'RUL_actual:{0},RUL_LSTM:{1},RUL_error:{2}'.format(rul,pre_rul,rul_error)
+    print(info)
     error_2_csv(eol_cap,start_pre_cycle,eol_cycle,rul,pre_rul,rul_error,failure)
     all_y = np.array(all[:,1:]).reshape(-1,1)
-    utils.plot_and_save(eol_cap_norm,cell_filename,timestep,cell_filename,'../result/sks_figure/',all_y,test,train,pre_y)
+    utils.plot_and_save(eol_cap_norm,cell_filename,timestep,info,'../result/sks_figure/',all_y,test,train,pre_y)
 
 if __name__ == '__main__':
     # split = 0.5
@@ -145,4 +149,7 @@ if __name__ == '__main__':
     epochs = args.epochs
     failure = args.failure
 
-    main(split,timestep,pre_step,batchsize,epochs,dropout_prob,failure)
+    for timestep in [5,10,15,20,25,30,35,40]:
+        for epochs in [100,150,200]:
+            for batchsize in [8,16,32,64,128]:
+                main(split,timestep,pre_step,batchsize,epochs,dropout_prob,failure)
