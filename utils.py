@@ -17,11 +17,11 @@ def plot_and_save(eol_cap_norm,title, timestep, save_filename, save_filepath, al
     plt.plot(range(len(train_y),len(train_y) + len(predict_y), 1), predict_y, 'g-')
     # plt.plot(range(sequence_length , sequence_length+ len(predict_y), 1), predict_y, 'g-')
     time = get_time()
-    plt.title(title)
+    plt.title(title+save_filename)
     plt.legend(['ground truth','train','test','predict'])
     # plt.show()
     # save_filename = str(time)+ "_" + save_filename
-    plt.savefig(save_filepath + save_filename + '.png')
+    plt.savefig(save_filepath + title+save_filename+"_"+get_time() + '.png')
     plt.close(fig2)
 
 def get_time():

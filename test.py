@@ -25,18 +25,18 @@ import random
 # a=[[[1, 2, 3, 0],[4, 5, 6, 0]],[[1,1,1,1],[2,2,2,2]]]
 # print(np.mean(a))
 # print(np.std(a))
-
-with open("sks/single_input.sh",'w') as f :
-    for i in range(5,100,5):
-        for epochs in [50,100,150,200]:
-            for batchsize in [8,16,32,64,128]:
-                sh_str = "python ./sks/sks_run.py --timestep " + str(i) + " --epochs " + str(
-                    epochs) +' --batch_size ' + str(batchsize)
-
-                f.write(sh_str)
-                f.write("\n")
-
-                f.flush()
+#
+# with open("sks/single_input.sh",'w') as f :
+#     for i in range(5,100,5):
+#         for epochs in [50,100,150,200]:
+#             for batchsize in [8,16,32,64,128]:
+#                 sh_str = "python ./sks/sks_run.py --timestep " + str(i) + " --epochs " + str(
+#                     epochs) +' --batch_size ' + str(batchsize)
+#
+#                 f.write(sh_str)
+#                 f.write("\n")
+#
+#                 f.flush()
 
 #
 
