@@ -6,4 +6,4 @@
 #python run.py --epochs 50 --feature_num 1 --usecols 9 10 --get_model_measure 0
 #python run.py --epochs 50 --feature_num 7 --usecols 3 4 5 6 7 8 9 10 --get_model_measure 0
 #python run.py --sequence_length 50 --epochs 50 --feature_num 7 --usecols 3 4 5 6 7 8 9 10 --get_model_measure 0
-python run.py --sequence_length 50 --predict_measure 1 --epochs 50 --feature_num 1 --usecols 9 10 --get_model_measure 0
+python ./sks/sks_run.py --timestep 5 --epochs 50 --batch_size 8
