@@ -77,7 +77,7 @@ def get_scaled_train(data,scaler = None):
 
 def get_x_y(data,timestep,col_index = 1, pre_step = 1):
     x,y = [],[]
-    for i in range(timestep,len(data)):
+    for i in range(timestep,len(data)-pre_step):
         x.append(data[i-timestep:i])
         y.append(data[i:i+pre_step,col_index])
     x = np.array(x)
@@ -115,8 +115,10 @@ def store_and_plot(cell_filename,all, train, test, pre_y, rul_values, pre_rul, r
 
 def predict(model,x_test_scaled,y_test,scaler):
     pre_scaled_y = model.predict(x_test_scaled)
+    pre_scaled_y = np.reshape(pre_scaled_y,(-1,1))
     construct_pre = np.tile(pre_scaled_y, (1, feature_num))
     pre_y = scaler.inverse_transform(construct_pre)[:, cap_col_index - 1]
+    y_test = np.reshape(y_test,(-1,1))
     mape = loss.get_mape(y_test,pre_y)
     mse = loss.get_rmse(y_test,pre_y)
     print("mape:{0:.4},mse:{1:.4}".format(mape,mse))
@@ -127,7 +129,7 @@ def one_cell_train(data_path,cell_filename,usecols,cap_index,split, timestep, pr
     train,test,all = get_origin_train_test(data_path,cell_filename,split,timestep,usecols=usecols)
     train_scaled,scaler = get_scaled_train(train)
     x_train_scaled,y_train_scaled = get_x_y(train_scaled, timestep, cap_index - 1,pre_step)
-    x_test_scaled,y_test = get_x_scaled_y(test, timestep, scaler, cap_index - 1)
+    x_test_scaled,y_test = get_x_scaled_y(test, timestep, scaler, cap_index - 1,pre_step=pre_step)
     model = lstm_network.lstm_network().build_network(timestep,feature_num,dense_units=pre_step,dropout_prob=dropout_prob)
     model.fit(x_train_scaled,y_train_scaled,batchsize,epochs)
 
@@ -158,7 +160,7 @@ def one_train_one_test(data_path,train_cell_filename,test_cell_filename,usecols,
     pre_rul,rul_error = get_pre_rul_and_error(rul_values,pre_y)
     store_and_plot(test_cell_filename,all_test_cell, train, test, pre_y, rul_values, pre_rul, rul_error, timestep, mape,mse,failure)
 
-# -----------------------multi_file(Cell),train together using first 600 cycles ,predict each one -------------------------------
+# -----------------------multi_file(Cell),train together using first 400 cycles ,predict each one -------------------------------
 def multi_cell_file(bound, split, timestep, pre_step, batchsize, epochs, dropout_prob, failure):
 
     ##TODO:43和46的前600个循环用于训练出一个模型，然后用于预测俩个电池的后0.3数据。
@@ -174,10 +176,10 @@ def multi_cell_file(bound, split, timestep, pre_step, batchsize, epochs, dropout
         test.append(cell_test)
         all.append(cell_all)
 
-    #获取每个cell的RUL_actual
+    #获取每个test cell的RUL_actual
     rul_list = []
     keys = ['start_pre_cycle','eol_cycle','rul','eol_cap','eol_cap_norm']
-    for i in range(len(all)):
+    for i in range(len(all)-2,len(all)):
         values = get_rul(all[i], split, col_index=cap_col_index)#python函数返回值其实是一个tuple。
         rul_list.append(dict(zip(keys,values)))
 
@@ -190,10 +192,11 @@ def multi_cell_file(bound, split, timestep, pre_step, batchsize, epochs, dropout
     x_train_scaled,y_train_scaled = [],[]
     x_test_scaled,y_test = [],[]
     for i in range(len(train_all_scaled)):
-        x_cell_train_scaled,y_cel_train_scaled = get_x_y(train_all_scaled[i], timestep, cap_col_index - 1)
-        x_cell_test_scaled,y_cell_test = get_x_scaled_y(test[i], timestep, scaler, cap_col_index - 1)
+        x_cell_train_scaled,y_cel_train_scaled = get_x_y(train_all_scaled[i], timestep, cap_col_index - 1,pre_step)
         x_train_scaled.append(x_cell_train_scaled)
         y_train_scaled.append(y_cel_train_scaled)
+    # for i in range(len(train_all_scaled)-2,len(train_all_scaled)):
+        x_cell_test_scaled, y_cell_test = get_x_scaled_y(test[i], timestep, scaler, cap_col_index - 1, pre_step)
         x_test_scaled.append(x_cell_test_scaled)
         y_test.append(y_cell_test)
     x_train_scaled = np.reshape(x_train_scaled,(-1,timestep,feature_num))
@@ -204,28 +207,30 @@ def multi_cell_file(bound, split, timestep, pre_step, batchsize, epochs, dropout
     model.fit(x_train_scaled,y_train_scaled,batchsize,epochs)
 
     #预测
-    for i in range(len(x_test_scaled)):
+    for i in range(len(x_test_scaled)-2,len(x_test_scaled)):
         pre_scaled_y = model.predict(x_test_scaled[i])
         # x_test_scaled[i][:,col_index-1:col_index] = pre_scaled_y
+        pre_scaled_y = np.reshape(pre_scaled_y,(-1,1))
         construct_pre = np.tile(pre_scaled_y,(1,feature_num))
         pre_y = scaler.inverse_transform(construct_pre)[:, cap_col_index - 1]
-        mape = loss.get_mape(y_test[i],pre_y)
-        mse = loss.get_rmse(y_test[i],pre_y)
+        y_test_cell = np.reshape(y_test[i],(-1,1))
+        mape = loss.get_mape(y_test_cell,pre_y)
+        mse = loss.get_rmse(y_test_cell,pre_y)
         mape_mse_info = "mape:{0:.4},mse:{1:.4}".format(mape,mse)
         print(mape_mse_info)
-        pre_rul = get_pre_rul(pre_y,rul_list[i]['eol_cap_norm'])
-        rul_error = rul_list[i]['rul'] -pre_rul
-        info = str(i) + '_RUL_actual:{0},LSTM:{1},error:{2},'.format(rul_list[i]['rul'],pre_rul,rul_error)+mape_mse_info
+        pre_rul = get_pre_rul(pre_y,rul_list[i-len(x_test_scaled)+2]['eol_cap_norm'])
+        rul_error = rul_list[i-len(x_test_scaled)+2]['rul'] -pre_rul
+        info = str(i) + '_RUL_actual:{0},LSTM:{1},error:{2},'.format(rul_list[i-len(x_test_scaled)+2]['rul'],pre_rul,rul_error)+mape_mse_info
         print(info)
-        error_2_csv(cell_filenames[i],rul_list[i]['eol_cap'],rul_list[i]['start_pre_cycle'],rul_list[i]['eol_cycle'],rul_list[i]['rul'],pre_rul,rul_error,mape,mse,failure)
+        error_2_csv(cell_filenames[i],rul_list[i-len(x_test_scaled)+2]['eol_cap'],rul_list[i-len(x_test_scaled)+2]['start_pre_cycle'],rul_list[i-len(x_test_scaled)+2]['eol_cycle'],rul_list[i-len(x_test_scaled)+2]['rul'],pre_rul,rul_error,mape,mse,failure)
         all_y = np.array(all[i][:, cap_col_index]).reshape(-1, 1)
-        utils.plot_and_save(rul_list[i]['eol_cap_norm'],cell_filename,timestep,info,'result/sks_figure/',all_y,test[i],train[i],pre_y)
+        utils.plot_and_save(rul_list[i-len(x_test_scaled)+2]['eol_cap_norm'],cell_filenames[i],timestep,info,'result/sks_figure/',all_y,test[i],train[i],pre_y)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='LSTM RUL Prediction for sks')
-    parser.add_argument('--timestep', type=int, default=30, help='time_step in lstm')
+    parser.add_argument('--timestep', type=int, default=15, help='time_step in lstm')
     parser.add_argument('--split', default=0.5, help='split of train and test set')
-    parser.add_argument('--pre_step',default=1,type=int)
+    parser.add_argument('--pre_step',default=10,type=int)
     parser.add_argument('--batch_size', type=int, default=64, help='8的效果不好')
     parser.add_argument('--epochs', type=int, default=100, metavar='N', help='number of epochs to train (default: 10)')
     parser.add_argument('--dropout', default=0.5)
@@ -235,13 +240,14 @@ if __name__ == '__main__':
     data_path = "data2/"
     cell_filename = "Statistics_1-046"
     suffix = '.csv'
-    cell_nums = ['043', '046']
+    cell_nums = ['013','017','019','022','023','043', '046']
+    test_nums = ['043', '046']
     cycle_cap_header = ['Cycle_Index', 'Discharge_Capacity(Ah)']
     usecols = [0, 6] #单变量输入
     multi_usecols = [0, 1, 3, 4, 5, 6, 7, 8, 12, 13, 14] #多特征值
     feature_num = len(multi_usecols) - 1 #多特征个数
     cap_col_index = 5  # or 1. 5 is the situation of feature cap in multi_usecols
-    bound = 600 #固定每个电池前600个循环用于训练
+    bound = 400 #固定每个电池前600个循环用于训练
 
     split = args.split
     dropout_prob = args.dropout
@@ -251,11 +257,11 @@ if __name__ == '__main__':
     epochs = args.epochs
     failure = args.failure
 
-    # multi_cell_file(bound, split, timestep, pre_step, batchsize, epochs, dropout_prob, failure)
+    multi_cell_file(bound, split, timestep, pre_step, batchsize, epochs, dropout_prob, failure)
     # single_cell(data_path,cell_filename,multi_usecols,cap_col_index,split,timestep,pre_step,batchsize,epochs,dropout_prob,failure)
-    one_train_one_test(data_path,'Statistics_1-043','Statistics_1-046',
-                       multi_usecols,cap_col_index,split,timestep,pre_step,
-                       batchsize,epochs,dropout_prob)
+    # one_train_one_test(data_path,'Statistics_1-043','Statistics_1-046',
+    #                    multi_usecols,cap_col_index,split,timestep,pre_step,
+    #                    batchsize,epochs,dropout_prob)
     # one_train_one_test(data_path, 'Statistics_1-046', 'Statistics_1-043',
     #                    multi_usecols, cap_col_index, split, timestep,pre_step,
     #                    batchsize, epochs, dropout_prob)

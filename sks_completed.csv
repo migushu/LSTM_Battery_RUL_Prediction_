@@ -6,6 +6,14 @@
     batchsize为8,16,32时，预测效果不好。
     dropout=0.5 ,batchsize 为64时效果较其他好
 5.TODO:多步预测
+  单cell输入预测,多特征
+  第3点
+  第4点
+  05/.../023/043/046 前400cycle用作训练,预测043/046
+
+
 
 readme:
 DONE:actual RUL的确定：是否应该满足连续的两个cap都小于等于cap_norm时，才将该cap对应的cycle作为Rul
+
+当前方法预测出的RUL不具有准确性,只是在拟合曲线,如果换一个capacity failure标准,预测的RUL准确性会变

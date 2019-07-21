@@ -131,20 +131,9 @@ def get_supervised_timestep_x_y(data, time_step,pre_step):
 def get_x_scaled_y(data, time_step,pre_step,scale):
     """
           Split data into x (features) and y (target)
-          We scale x to have mean 0 and std dev 1, and return this.
-          We do not scale y here.
-          Inputs
-              data     : pandas series to extract x and y
-              time_step
-          Outputs
-              x_scaled : features used to predict y. Scaled such that each element has mean 0 and std dev 1
-              y        : target values. Not scaled
-              mu_list  : list of the means. Same length as x_scaled and y
-              std_list : list of the std devs. Same length as x_scaled and y
           """
     x_scaled, y_unscaled, mu_list, std_list = [], [], [], []
     for i in range(0,len(data)-time_step-pre_step,pre_step):#减去2倍timestep,y最后一个长度才能保证为timestep
-        index = int(i/time_step)
         mu_list.append(np.mean(data[i:i+time_step]))
         std_list.append(np.std(data[i:i+time_step]))
         # x_scaled.append((data[i:i+time_step] - mu_list[index]) / std_list[index])
