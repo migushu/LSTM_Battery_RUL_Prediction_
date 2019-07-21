@@ -1,17 +1,13 @@
-import numpy as np
+import math
 import matplotlib.pyplot as plt
-import lstm_network
-import lstm_model
+import numpy as np
+from sklearn.externals import joblib
+from sklearn.metrics import mean_squared_error
 import load_data
 import loss
+import lstm_model
+import lstm_network
 import utils
-from sklearn.metrics import mean_squared_error
-from sklearn.preprocessing import MinMaxScaler,StandardScaler
-from keras.layers import LSTM,Dense,Dropout
-from keras.models import Sequential
-import math
-from sklearn.externals import joblib
-import random
 
 '''
 循环预测：

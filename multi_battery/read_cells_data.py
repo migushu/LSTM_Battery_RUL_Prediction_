@@ -6,8 +6,9 @@
 
 '''
 
-import pandas as pd
 import numpy as np
+import pandas as pd
+
 
 #读取多个电池生命周期数据，集合到一个csv文件中，用于训练
 def main():

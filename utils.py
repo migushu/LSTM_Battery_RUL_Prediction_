@@ -1,6 +1,8 @@
-import matplotlib.pyplot as plt
 import datetime
+
+import matplotlib.pyplot as plt
 from sklearn.externals import joblib
+
 
 #save_filepath: 'result/single_variable/'
 def plot_and_save(eol_cap_norm,title, timestep, save_filename, save_filepath, all_y, test_y, train_y, predict_y):
@@ -21,7 +23,7 @@ def plot_and_save(eol_cap_norm,title, timestep, save_filename, save_filepath, al
     plt.legend(['ground truth','train','test','predict'])
     # plt.show()
     # save_filename = str(time)+ "_" + save_filename
-    plt.savefig(save_filepath + title+save_filename+"_"+get_time() + '.png')
+    plt.savefig(save_filepath + get_time() +"_"+ title + save_filename +'.png')
     plt.close(fig2)
 
 def get_time():

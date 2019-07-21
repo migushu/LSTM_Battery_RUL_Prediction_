@@ -1,12 +1,3 @@
-import datetime as dt
-import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
-import numpy as np
-import pandas as pd
-import keras
-from sklearn.preprocessing import MinMaxScaler
-import random
-
 # a = np.arange(9).reshape((3,3))
 # print(a)
 # a = np.reshape(a,(-1,1))
@@ -26,17 +17,17 @@ import random
 # print(np.mean(a))
 # print(np.std(a))
 #
-# with open("sks/single_input.sh",'w') as f :
-#     for i in range(5,100,5):
-#         for epochs in [50,100,150,200]:
-#             for batchsize in [8,16,32,64,128]:
-#                 sh_str = "python ./sks/sks_run.py --timestep " + str(i) + " --epochs " + str(
-#                     epochs) +' --batch_size ' + str(batchsize)
-#
-#                 f.write(sh_str)
-#                 f.write("\n")
-#
-#                 f.flush()
+with open("sks.sh",'a+') as f :
+    for i in range(5,50,5):
+        for epochs in [50,100,150,200]:
+            for batchsize in [8,16,32,64,128]:
+                sh_str = "python sks_run.py --timestep " + str(i) + " --epochs " + str(
+                    epochs) +' --batch_size ' + str(batchsize)
+
+                f.write(sh_str)
+                f.write("\n")
+
+                f.flush()
 
 #
 

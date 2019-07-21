@@ -1,17 +1,9 @@
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-from sklearn.preprocessing import StandardScaler,MinMaxScaler
-from sklearn.metrics import mean_squared_error
-from keras.models import Sequential
-from keras.layers import LSTM, Dense, Activation,Dropout,Flatten
-import datetime
 import random
-import math
-import codecs
-import os.path as osp
-from numpy import newaxis
-import argparse
+
+import numpy as np
+import pandas as pd
+from sklearn.preprocessing import MinMaxScaler
+
 
 class load_cells_data():
     def __init__(self,filename,seq_len,split,usecols =[0,1]):

@@ -1,17 +1,13 @@
 import argparse
 import os.path as osp
-import datetime
 import numpy as np
-import random
-import lstm_model
-import loss
-from utils import plot_and_save,get_time
+from sklearn.preprocessing import MinMaxScaler
 import load_data
+import loss
 import lstm_model
 import lstm_network
-from sklearn.externals import joblib
-from sklearn.preprocessing import MinMaxScaler,StandardScaler
 import timestep_prediction
+from utils import plot_and_save, get_time
 
 
 def get_base_train_data(dataloader,timestep,pre_step,is_timestep_y = False):

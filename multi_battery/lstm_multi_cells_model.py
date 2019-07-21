@@ -1,17 +1,9 @@
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-from sklearn.preprocessing import StandardScaler,MinMaxScaler
-from sklearn.metrics import mean_squared_error
-from keras.models import Sequential,model_from_json
-from keras.layers import LSTM, Dense, Activation,Dropout,Flatten
-import datetime
-import random
-import math
-import codecs
-import os.path as osp
-from numpy import newaxis
 import argparse
+
+import numpy as np
+from keras.layers import LSTM, Dense, Activation, Dropout
+from keras.models import Sequential
+
 
 def build_model(seq_len,features_num,dropout_prob=0.5,units_num=50):
     # input_dim是输入的train_x的最后一个维度，train_x的维度为(n_samples, time_steps, input_dim)

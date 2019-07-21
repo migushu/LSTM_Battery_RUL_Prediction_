@@ -1,8 +1,8 @@
-import pandas as pd
 import numpy as np
-from sklearn.preprocessing import StandardScaler,MinMaxScaler
+import pandas as pd
 from sklearn.externals import joblib
-import random
+from sklearn.preprocessing import MinMaxScaler
+
 
 class load_data():
     def __init__(self,filename,seq_len=50,split=0.3,usecols =[ 9, 10]):

@@ -1,8 +1,9 @@
-from keras.models import Sequential,model_from_json
-from keras.layers import Dropout,LSTM,Dense,Activation
 import numpy as np
+from keras.models import model_from_json
 from sklearn.externals import joblib
+
 import lstm_network
+
 
 #TODO:可优化成两个类似生成器的东西，一个自定义模型，一个通过已有模型导入
 class lstm():
